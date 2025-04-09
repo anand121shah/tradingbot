@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-connected {
+            background-color: #28a745;
+        }
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+        .trade-card {
+            transition: all 0.3s ease;
+        }
+        .trade-card:hover {
+            transform: translateY(-5px);
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+        .positive-pnl {
+            color: #28a745;
+        }
+        .negative-pnl {
+            color: #dc3545;
+        }
+        .alert-card {
+            margin-bottom: 1rem;
+        }
+        .high-priority {
+            border-left: 4px solid #dc3545;
+        }
+        .medium-priority {
+            border-left: 4px solid #ffc107;
+        }
+        .low-priority {
+            border-left: 4px solid #28a745;
+        }
+        .market-indicator {
+            padding: 1rem;
+            border-radius: 0.25rem;
+            margin-bottom: 1rem;
+        }
+        .positive {
+            background-color: rgba(40, 167, 69, 0.1);
+        }
+        .negative {
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">Trading Bot Dashboard</span>
+            <div class="d-flex align-items-center">
+                <span class="status-indicator" id="connection-status"></span>
+                <span class="text-light" id="status-text">Disconnected</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light ms-3">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <!-- System Status Card -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">System Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Connection Status:</span>
+                            <span id="system-status">Disconnected</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span>Last Update:</span>
+                            <span id="last-update">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Summary Card -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Account Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="account-summary">
+                            <!-- Account data will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- P&L Charts -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">P&L Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav nav-tabs" id="pnlTabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" id="daily-tab" data-bs-toggle="tab" href="#daily" role="tab">Daily</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="weekly-tab" data-bs-toggle="tab" href="#weekly" role="tab">Weekly</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="monthly-tab" data-bs-toggle="tab" href="#monthly" role="tab">Monthly</a>
+                            </li>
+                        </ul>
+                        <div class="tab-content" id="pnlTabContent">
+                            <div class="tab-pane fade show active" id="daily" role="tabpanel">
+                                <div class="chart-container">
+                                    <canvas id="dailyChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="weekly" role="tabpanel">
+                                <div class="chart-container">
+                                    <canvas id="weeklyChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="monthly" role="tabpanel">
+                                <div class="chart-container">
+                                    <canvas id="monthlyChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Trades Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Active Trades</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="active-trades">
+                            <!-- Trade cards will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trade History Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Trade History</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Symbol</th>
+                                        <th>Type</th>
+                                        <th>Direction</th>
+                                        <th>Entry Price</th>
+                                        <th>Exit Price</th>
+                                        <th>Quantity</th>
+                                        <th>P&L</th>
+                                        <th>Entry Time</th>
+                                        <th>Exit Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trade-history">
+                                    <!-- Trade history will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Management Section -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Risk Management</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Portfolio Metrics</h6>
+                            <ul class="list-group">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Portfolio Beta
+                                    <span class="badge bg-primary rounded-pill">{{ risk_report.risk_metrics.portfolio_beta|round(2) }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Portfolio Volatility
+                                    <span class="badge bg-primary rounded-pill">{{ risk_report.risk_metrics.portfolio_volatility|round(2) }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Value at Risk
+                                    <span class="badge bg-primary rounded-pill">{{ risk_report.risk_metrics.value_at_risk|round(2) }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Max Drawdown
+                                    <span class="badge bg-primary rounded-pill">{{ risk_report.risk_metrics.max_drawdown|round(2) }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Sharpe Ratio
+                                    <span class="badge bg-primary rounded-pill">{{ risk_report.risk_metrics.sharpe_ratio|round(2) }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Add New Position</h6>
+                            <form id="positionForm">
+                                <div class="mb-3">
+                                    <input type="text" class="form-control" name="symbol" placeholder="Symbol" required>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="number" class="form-control" name="position_size" placeholder="Position Size" required>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="number" class="form-control" name="entry_price" placeholder="Entry Price" required>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="number" class="form-control" name="current_price" placeholder="Current Price" required>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="number" class="form-control" name="stop_loss" placeholder="Stop Loss" required>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="number" class="form-control" name="take_profit" placeholder="Take Profit" required>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="number" class="form-control" name="quantity" placeholder="Quantity" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Add Position</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Analysis Section -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Market Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="symbolInput" placeholder="Enter symbol to analyze">
+                    </div>
+                    <div id="marketAnalysis">
+                        <!-- Market analysis will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Market Alerts</h5>
+                </div>
+                <div class="card-body">
+                    <div id="alertsContainer">
+                        <!-- Alerts will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Close Trade Modal -->
+    <div class="modal fade" id="closeTradeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Close Trade</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="closeTradeForm">
+                        <input type="hidden" id="tradeSymbol">
+                        <div class="mb-3">
+                            <label for="exitPrice" class="form-label">Exit Price</label>
+                            <input type="number" class="form-control" id="exitPrice" step="0.01" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmClose">Close Trade</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <script>
+        let dailyChart, weeklyChart, monthlyChart;
+        const closeTradeModal = new bootstrap.Modal(document.getElementById('closeTradeModal'));
+
+        function updateDashboard() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    // Update system status
+                    const statusIndicator = document.getElementById('connection-status');
+                    const statusText = document.getElementById('status-text');
+                    const systemStatus = document.getElementById('system-status');
+                    
+                    if (data.system_status === 'Connected') {
+                        statusIndicator.className = 'status-indicator status-connected';
+                        statusText.textContent = 'Connected';
+                        systemStatus.textContent = 'Connected';
+                    } else {
+                        statusIndicator.className = 'status-indicator status-disconnected';
+                        statusText.textContent = 'Disconnected';
+                        systemStatus.textContent = 'Disconnected';
+                    }
+                    
+                    // Update last update time
+                    document.getElementById('last-update').textContent = data.last_update;
+                    
+                    // Update active trades
+                    const activeTradesDiv = document.getElementById('active-trades');
+                    activeTradesDiv.innerHTML = '';
+                    
+                    Object.entries(data.active_trades).forEach(([symbol, trade]) => {
+                        const tradeCard = document.createElement('div');
+                        tradeCard.className = 'col-md-4 mb-3';
+                        tradeCard.innerHTML = `
+                            <div class="card trade-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">${symbol}</h5>
+                                    <p class="card-text">
+                                        <strong>Type:</strong> ${trade.is_option ? 'Option' : 'Stock'}<br>
+                                        <strong>Direction:</strong> ${trade.direction}<br>
+                                        <strong>Entry Price:</strong> $${trade.entry_price}<br>
+                                        <strong>Stop Loss:</strong> $${trade.stop_loss}<br>
+                                        <strong>Take Profit:</strong> $${trade.take_profit}<br>
+                                        <strong>Quantity:</strong> ${trade.quantity}
+                                    </p>
+                                    <button class="btn btn-danger btn-sm" onclick="openCloseTradeModal('${symbol}')">
+                                        Close Trade
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        activeTradesDiv.appendChild(tradeCard);
+                    });
+
+                    // Update trade history
+                    const tradeHistoryTbody = document.getElementById('trade-history');
+                    tradeHistoryTbody.innerHTML = '';
+                    
+                    data.trade_history.forEach(trade => {
+                        const pnlClass = trade.pnl >= 0 ? 'positive-pnl' : 'negative-pnl';
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${trade.symbol}</td>
+                            <td>${trade.type}</td>
+                            <td>${trade.direction}</td>
+                            <td>$${trade.entry_price}</td>
+                            <td>$${trade.exit_price}</td>
+                            <td>${trade.quantity}</td>
+                            <td class="${pnlClass}">$${trade.pnl}</td>
+                            <td>${trade.entry_time}</td>
+                            <td>${trade.exit_time}</td>
+                        `;
+                        tradeHistoryTbody.appendChild(row);
+                    });
+
+                    // Update P&L charts
+                    updateCharts(data.pnl_data);
+                })
+                .catch(error => console.error('Error fetching dashboard data:', error));
+        }
+
+        function updateCharts(pnlData) {
+            // Daily chart
+            if (dailyChart) dailyChart.destroy();
+            const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+            dailyChart = new Chart(dailyCtx, {
+                type: 'line',
+                data: {
+                    labels: pnlData.daily.map(d => d.date),
+                    datasets: [{
+                        label: 'Daily P&L',
+                        data: pnlData.daily.map(d => d.pnl),
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Weekly chart
+            if (weeklyChart) weeklyChart.destroy();
+            const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+            weeklyChart = new Chart(weeklyCtx, {
+                type: 'bar',
+                data: {
+                    labels: pnlData.weekly.map(w => w.week),
+                    datasets: [{
+                        label: 'Weekly P&L',
+                        data: pnlData.weekly.map(w => w.pnl),
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Monthly chart
+            if (monthlyChart) monthlyChart.destroy();
+            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+            monthlyChart = new Chart(monthlyCtx, {
+                type: 'bar',
+                data: {
+                    labels: pnlData.monthly.map(m => m.month),
+                    datasets: [{
+                        label: 'Monthly P&L',
+                        data: pnlData.monthly.map(m => m.pnl),
+                        backgroundColor: 'rgba(255, 99, 132, 0.5)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function openCloseTradeModal(symbol) {
+            document.getElementById('tradeSymbol').value = symbol;
+            closeTradeModal.show();
+        }
+
+        document.getElementById('confirmClose').addEventListener('click', () => {
+            const symbol = document.getElementById('tradeSymbol').value;
+            const exitPrice = document.getElementById('exitPrice').value;
+            
+            fetch('/api/close_trade', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    symbol: symbol,
+                    exit_price: parseFloat(exitPrice)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    closeTradeModal.hide();
+                    updateDashboard();
+                } else {
+                    alert('Error closing trade: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error closing trade: ' + error);
+            });
+        });
+
+        // Update dashboard every 5 seconds
+        setInterval(updateDashboard, 5000);
+        updateDashboard(); // Initial update
+
+        // Handle position form submission
+        document.getElementById('positionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('/api/positions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert('Position added successfully');
+                    location.reload();
+                } else {
+                    alert(result.message || 'Error adding position');
+                }
+            } catch (error) {
+                alert('Error adding position');
+            }
+        });
+
+        // Handle market analysis
+        document.getElementById('symbolInput').addEventListener('change', async (e) => {
+            const symbol = e.target.value;
+            if (!symbol) return;
+            
+            try {
+                const response = await fetch(`/api/market-analysis/${symbol}`);
+                const analysis = await response.json();
+                
+                const analysisContainer = document.getElementById('marketAnalysis');
+                analysisContainer.innerHTML = `
+                    <div class="market-indicator ${analysis.price_data.price_change_percent >= 0 ? 'positive' : 'negative'}">
+                        <h6>Price Data</h6>
+                        <p>Current Price: $${analysis.price_data.current_price.toFixed(2)}</p>
+                        <p>Change: ${analysis.price_data.price_change_percent.toFixed(2)}%</p>
+                    </div>
+                    <div class="market-indicator">
+                        <h6>Volume Profile</h6>
+                        <p>Current Volume: ${analysis.volume_data.current_volume.toLocaleString()}</p>
+                        <p>Average Volume: ${analysis.volume_data.average_volume.toLocaleString()}</p>
+                    </div>
+                    <div class="market-indicator">
+                        <h6>Technical Indicators</h6>
+                        <p>RSI: ${analysis.technical_indicators.rsi.iloc[-1].toFixed(2)}</p>
+                        <p>MACD: ${analysis.technical_indicators.macd.macd.iloc[-1].toFixed(2)}</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error fetching market analysis:', error);
+            }
+        });
+
+        // Load and update alerts
+        async function updateAlerts() {
+            try {
+                const response = await fetch('/api/alerts');
+                const alerts = await response.json();
+                
+                const alertsContainer = document.getElementById('alertsContainer');
+                alertsContainer.innerHTML = alerts.map(alert => `
+                    <div class="card alert-card ${alert.priority}-priority">
+                        <div class="card-body">
+                            <h6 class="card-title">${alert.symbol} - ${alert.type}</h6>
+                            <p class="card-text">${alert.message}</p>
+                            <small class="text-muted">${new Date(alert.timestamp).toLocaleString()}</small>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error fetching alerts:', error);
+            }
+        }
+
+        // Update alerts every 30 seconds
+        updateAlerts();
+        setInterval(updateAlerts, 30000);
+    </script>
+</body>
+</html> 
